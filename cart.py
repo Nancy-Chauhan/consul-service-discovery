@@ -2,7 +2,9 @@ import uuid
 from collections import namedtuple
 from typing import Dict
 
+import consul
 import requests
+from consul import Check
 from flask import Flask, jsonify, abort, request
 
 app = Flask(__name__)
@@ -10,6 +12,10 @@ app = Flask(__name__)
 Item = namedtuple('Item', ['id', 'name', 'price'])
 
 CartEntry = namedtuple('CartEntry', ['id', 'item', 'quantity'])
+
+config = {
+    'CHECKOUT_URL': ''
+}
 
 
 class ShoppingCart:
@@ -41,6 +47,11 @@ class ShoppingCart:
 
 
 carts: Dict[str, ShoppingCart] = {}
+
+
+@app.route('/healthcheck')
+def check():
+    return 'OK'
 
 
 @app.route("/carts", methods=['POST'])
@@ -98,7 +109,7 @@ def checkout_cart(cart_id):
         abort(404, 'Cart not found')
         return
 
-    url = "http://localhost:5000/checkout"
+    url = f"{config['CHECKOUT_URL']}/checkout"
 
     checkout_request = {
         'order_id': cart_id,
@@ -128,6 +139,20 @@ def bad_request(e):
 
 # @app.route("/carts/<cart_id>/remove/<cart_entry_id>, methods=['DELETE'])
 
+def main():
+    # consul client create
+    c = consul.Consul()
+    # health check
+    check_http = Check.http('http://127.0.0.1:5001/healthcheck', interval='5s', timeout='10s', deregister=True)
+    # registration of cart service
+    c.agent.service.register('cart', address='127.0.0.1', port=5001, check=check_http)
+
+    # discovery
+    services = c.catalog.service('checkout')[1][0]
+    # url for checkout micro-service
+    config['CHECKOUT_URL'] = f"http://{services['ServiceAddress']}:{services['ServicePort']}"
+    app.run(debug=True, host='0.0.0.0', port=5001)
+
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5001)
+    main()
