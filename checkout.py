@@ -1,3 +1,4 @@
+import os
 import uuid
 from collections import namedtuple
 from typing import Dict
@@ -54,7 +55,7 @@ def main():
     c = consul.Consul()
     check_http = Check.http('http://127.0.0.1:5000/healthcheck', interval='5s', timeout='10s', deregister=True)
     # registration of checkout service
-    c.agent.service.register('checkout', address='127.0.0.1', port=5000, check=check_http)
+    c.agent.service.register('checkout', address=os.getenv("LISTEN_ADDR", "127.0.0.1"), port=5000, check=check_http)
 
     app.run(debug=True, host='0.0.0.0', port=5000)
 

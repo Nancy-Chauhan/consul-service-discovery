@@ -1,3 +1,4 @@
+import os
 import uuid
 from collections import namedtuple
 from typing import Dict
@@ -145,7 +146,7 @@ def main():
     # health check
     check_http = Check.http('http://127.0.0.1:5001/healthcheck', interval='5s', timeout='10s', deregister=True)
     # registration of cart service
-    c.agent.service.register('cart', address='127.0.0.1', port=5001, check=check_http)
+    c.agent.service.register('cart', address=os.getenv("LISTEN_ADDR", "127.0.0.1"), port=5001, check=check_http)
 
     # discovery
     services = c.catalog.service('checkout')[1][0]
